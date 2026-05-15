@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Sri Rudram — Sacred Commentary Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600&family=Noto+Sans+Devanagari:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg: #0d0005; --bg2: #130008; --bg3: #1a000d;
+  --border: rgba(210,155,60,0.18); --border2: rgba(210,155,60,0.08);
+  --gold: #C9922A; --gold2: #E8BA60; --gold3: #F5D98A;
+  --saffron: #E07820; --cream: #F2E0B8; --cream2: #D8C49A; --cream3: #A89070;
+  --muted: #604030; --red-accent: #8B1A2A; --green-ok: #2DD4A0;
+  --red-err: #F87171;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--cream); font-family: 'Cormorant Garamond', serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+.hdr { border-bottom: 1px solid var(--border); padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); flex-shrink: 0; gap: 12px; }
+.hdr-brand { display: flex; align-items: center; gap: 12px; }
+.hdr-om { font-size: 2rem; color: var(--gold); line-height: 1; text-shadow: 0 0 20px rgba(201,146,42,0.5); }
+.hdr-title { font-family: 'Cinzel Decorative', serif; font-size: 0.72rem; font-weight: 700; color: var(--gold2); letter-spacing: 2px; line-height: 1.4; }
+.hdr-sub { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 0.7rem; color: var(--cream3); letter-spacing: 0.5px; }
+.hdr-actions { display: flex; gap: 8px; align-items: center; }
+.btn { font-family: 'Cinzel Decorative', serif; font-size: 0.52rem; font-weight: 400; letter-spacing: 1.5px; text-transform: uppercase; padding: 7px 14px; border: 1px solid var(--border); background: rgba(201,146,42,0.07); color: var(--cream2); cursor: pointer; transition: all 0.25s; white-space: nowrap; }
+.btn:hover { background: rgba(201,146,42,0.18); border-color: var(--gold); color: var(--gold3); }
+.btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.btn.primary { background: rgba(201,146,42,0.2); border-color: rgba(201,146,42,0.6); color: var(--gold2); }
+.btn.primary:hover:not(:disabled) { background: rgba(201,146,42,0.35); box-shadow: 0 0 20px rgba(201,146,42,0.2); }
+.btn.danger { border-color: rgba(248,113,113,0.3); color: #F87171; background: rgba(248,113,113,0.05); }
+.btn.danger:hover { background: rgba(248,113,113,0.12); }
+.layout { display: flex; flex: 1; overflow: hidden; }
+.sidebar { width: 240px; flex-shrink: 0; border-right: 1px solid var(--border2); overflow-y: auto; background: rgba(0,0,0,0.3); scrollbar-width: thin; scrollbar-color: rgba(201,146,42,0.2) transparent; }
+.sidebar::-webkit-scrollbar { width: 3px; }
+.sidebar::-webkit-scrollbar-thumb { background: rgba(201,146,42,0.2); }
+.sb-group { padding: 10px 0 4px; border-bottom: 1px solid var(--border2); }
+.sb-group-title { font-family: 'Cinzel Decorative', serif; font-size: 0.42rem; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: var(--gold); padding: 0 14px 6px; }
+.sb-item { display: flex; align-items: center; gap: 8px; padding: 6px 14px; cursor: pointer; transition: background 0.15s; border-left: 2px solid transparent; }
+.sb-item:hover { background: rgba(201,146,42,0.06); }
+.sb-item.active { background: rgba(201,146,42,0.12); border-left-color: var(--gold); }
+.sb-status { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; background: var(--muted); border: 1px solid rgba(255,255,255,0.1); }
+.sb-status.done { background: var(--green-ok); box-shadow: 0 0 6px rgba(45,212,160,0.4); }
+.sb-status.generating { background: var(--gold); animation: pulse 1s infinite; }
+.sb-status.error { background: var(--red-err); }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+.sb-label { font-family: 'Cormorant Garamond', serif; font-size: 0.72rem; color: var(--cream2); line-height: 1.3; flex: 1; }
+.sb-item.active .sb-label { color: var(--cream); }
+.sb-anuvaka { font-family: 'JetBrains Mono', monospace; font-size: 0.42rem; color: var(--cream3); }
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.content-area { flex: 1; overflow-y: auto; padding: 30px 40px 40px; scrollbar-width: thin; scrollbar-color: rgba(201,146,42,0.2) transparent; position: relative; }
+.content-area::-webkit-scrollbar { width: 4px; }
+.content-area::-webkit-scrollbar-thumb { background: rgba(201,146,42,0.2); }
+.content-area::before { content: 'ॐ'; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 40vw; color: rgba(201,146,42,0.015); pointer-events: none; z-index: 0; line-height: 1; }
+.section-header { position: relative; z-index: 1; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+.section-header::before { content: ''; position: absolute; bottom: -1px; left: 0; width: 80px; height: 2px; background: linear-gradient(90deg, var(--gold), transparent); }
+.sec-eyebrow { font-family: 'Cinzel Decorative', serif; font-size: 0.48rem; font-weight: 400; letter-spacing: 3px; color: var(--gold); text-transform: uppercase; margin-bottom: 8px; }
+.sec-title { font-family: 'Cinzel Decorative', serif; font-size: 1.4rem; font-weight: 700; color: var(--cream); line-height: 1.3; margin-bottom: 6px; }
+.sec-subtitle { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 1rem; color: var(--cream3); }
+.welcome { position: relative; z-index: 1; max-width: 680px; margin: 40px auto; text-align: center; }
+.welcome-om { font-size: 5rem; color: var(--gold); text-shadow: 0 0 60px rgba(201,146,42,0.4); display: block; margin-bottom: 24px; animation: glow 3s ease-in-out infinite; }
+@keyframes glow { 0%,100% { text-shadow: 0 0 40px rgba(201,146,42,0.3); } 50% { text-shadow: 0 0 80px rgba(201,146,42,0.6); } }
+.welcome h1 { font-family: 'Cinzel Decorative', serif; font-size: 1.3rem; color: var(--cream); margin-bottom: 14px; letter-spacing: 2px; }
+.welcome p { font-size: 1.05rem; color: var(--cream2); line-height: 1.8; margin-bottom: 12px; }
+.welcome .verse { font-style: italic; font-size: 1rem; color: var(--cream3); border-left: 2px solid var(--gold); padding: 10px 18px; margin: 20px 0; text-align: left; background: rgba(201,146,42,0.04); }
+.stats-row { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; margin: 24px 0; }
+.stat-card { background: rgba(201,146,42,0.06); border: 1px solid var(--border); padding: 14px 20px; text-align: center; min-width: 100px; }
+.stat-num { font-family: 'Cinzel Decorative', serif; font-size: 1.6rem; color: var(--gold2); display: block; }
+.stat-lbl { font-size: 0.75rem; color: var(--cream3); text-transform: uppercase; letter-spacing: 1px; font-style: italic; }
+.generated-content { position: relative; z-index: 1; font-size: 1rem; line-height: 1.85; color: var(--cream2); }
+.generated-content h1, .generated-content h2 { font-family: 'Cinzel Decorative', serif; color: var(--gold2); margin: 28px 0 12px; letter-spacing: 1px; }
+.generated-content h1 { font-size: 1.1rem; }
+.generated-content h2 { font-size: 0.9rem; }
+.generated-content h3 { font-family: 'Cormorant Garamond', serif; font-size: 1.05rem; font-weight: 600; color: var(--saffron); margin: 22px 0 8px; letter-spacing: 0.5px; border-bottom: 1px solid var(--border2); padding-bottom: 4px; }
+.generated-content p { margin-bottom: 14px; }
+.generated-content strong { color: var(--cream); font-weight: 600; }
+.generated-content em { color: var(--gold3); font-style: italic; }
+.generated-content blockquote { border-left: 3px solid var(--gold); padding: 10px 18px; margin: 16px 0; background: rgba(201,146,42,0.05); color: var(--cream); font-style: italic; }
+.generated-content ul, .generated-content ol { margin: 10px 0 14px 24px; }
+.generated-content li { margin-bottom: 6px; }
+.generated-content code { font-family: 'Noto Sans Devanagari', sans-serif; background: rgba(201,146,42,0.08); border: 1px solid var(--border2); padding: 1px 6px; font-size: 0.95em; color: var(--gold3); }
+.generated-content hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+.loading-state { position: relative; z-index: 1; text-align: center; padding: 60px 20px; }
+.spinner { width: 48px; height: 48px; border: 2px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-state p { font-style: italic; color: var(--cream3); font-size: 0.9rem; }
+.loading-mantra { font-family: 'Noto Sans Devanagari', sans-serif; font-size: 1.3rem; color: var(--gold); margin-top: 12px; animation: pulse 2s ease-in-out infinite; }
+.empty-section { position: relative; z-index: 1; text-align: center; padding: 60px 20px; color: var(--cream3); }
+.empty-section .big-icon { font-size: 3rem; margin-bottom: 16px; display: block; }
+.empty-section p { font-style: italic; font-size: 0.95rem; }
+.progress-bar-wrap { height: 2px; background: var(--border2); flex-shrink: 0; }
+.progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--saffron), var(--gold2)); transition: width 0.4s ease; }
+.log-strip { border-top: 1px solid var(--border2); background: rgba(0,0,0,0.4); padding: 5px 14px; flex-shrink: 0; display: flex; align-items: center; gap: 10px; height: 28px; overflow: hidden; }
+.log-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+.log-dot.ok { background: var(--green-ok); }
+.log-dot.err { background: var(--red-err); }
+.log-dot.info { background: var(--gold); }
+.log-text { font-family: 'JetBrains Mono', monospace; font-size: 0.5rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+.log-time { font-family: 'JetBrains Mono', monospace; font-size: 0.45rem; color: var(--muted); flex-shrink: 0; }
+.keyvault { width: 270px; flex-shrink: 0; border-left: 1px solid var(--border2); display: flex; flex-direction: column; background: rgba(0,0,0,0.4); }
+.kv-header { padding: 12px 14px; border-bottom: 1px solid var(--border2); background: rgba(0,0,0,0.3); flex-shrink: 0; }
+.kv-title { font-family: 'Cinzel Decorative', serif; font-size: 0.52rem; font-weight: 700; letter-spacing: 2px; color: var(--gold); margin-bottom: 3px; }
+.kv-sub { font-family: 'JetBrains Mono', monospace; font-size: 0.42rem; color: var(--muted); line-height: 1.5; }
+.kv-body { flex: 1; overflow-y: auto; padding: 8px 10px; scrollbar-width: thin; scrollbar-color: rgba(201,146,42,0.1) transparent; }
+.kv-body::-webkit-scrollbar { width: 2px; }
+.kv-body::-webkit-scrollbar-thumb { background: rgba(201,146,42,0.1); }
+.key-slot { display: flex; align-items: center; gap: 5px; margin-bottom: 4px; }
+.ks-num { font-family: 'JetBrains Mono', monospace; font-size: 0.42rem; color: #2a2a2a; min-width: 16px; text-align: right; flex-shrink: 0; }
+.ks-input { flex: 1; min-width: 0; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); padding: 5px 7px; font-family: 'JetBrains Mono', monospace; font-size: 0.46rem; color: #666; outline: none; transition: all 0.2s; }
+.ks-input:focus { border-color: rgba(201,146,42,0.4); background: rgba(255,255,255,0.04); }
+.ks-input::placeholder { color: #1e1e1e; font-size: 0.4rem; }
+.ks-input.locked { color: transparent; text-shadow: 0 0 7px rgba(45,212,160,0.5); border-color: rgba(45,212,160,0.2); background: rgba(5,15,12,0.5); pointer-events: none; user-select: none; }
+.ks-input.error { border-color: rgba(248,113,113,0.3); color: #F87171; }
+.ks-btn { width: 20px; height: 20px; background: none; border: 1px solid rgba(255,255,255,0.06); color: #2a2a2a; font-size: 0.55rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 2px; font-family: inherit; }
+.ks-btn:hover { border-color: rgba(201,146,42,0.4); color: var(--gold); }
+.ks-btn.locked { border-color: rgba(45,212,160,0.3); color: var(--green-ok); }
+.kv-footer { border-top: 1px solid var(--border2); padding: 10px 12px; flex-shrink: 0; background: rgba(0,0,0,0.2); }
+.kv-stat { display: flex; justify-content: space-between; margin-bottom: 4px; }
+.kv-stat-lbl { font-family: 'Cinzel Decorative', serif; font-size: 0.42rem; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; }
+.kv-stat-val { font-family: 'JetBrains Mono', monospace; font-size: 0.5rem; color: var(--green-ok); }
+.kv-stat-val.warn { color: var(--gold); }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100; display: flex; align-items: center; justify-content: center; }
+.modal { background: var(--bg2); border: 1px solid var(--border); max-width: 700px; width: 95%; max-height: 80vh; display: flex; flex-direction: column; }
+.modal-hdr { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+.modal-title { font-family: 'Cinzel Decorative', serif; font-size: 0.75rem; color: var(--gold2); }
+.modal-close { background: none; border: none; color: var(--cream3); font-size: 1.2rem; cursor: pointer; }
+.modal-body { flex: 1; overflow-y: auto; padding: 20px; }
+.modal-textarea { width: 100%; min-height: 400px; background: rgba(0,0,0,0.4); border: 1px solid var(--border2); color: var(--cream2); font-family: 'Cormorant Garamond', serif; font-size: 0.9rem; line-height: 1.7; padding: 14px; resize: vertical; outline: none; }
+.modal-footer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-brand">
+    <div class="hdr-om">ॐ</div>
+    <div>
+      <div class="hdr-title">Sri Rudram — Sacred Commentary Generator</div>
+      <div class="hdr-sub">Namakam · Chamakam · Svara Sthāna · Metaphysics · Neuroscience</div>
+    </div>
+  </div>
+  <div class="hdr-actions">
+    <span id="progressLabel" style="font-family:'JetBrains Mono',monospace;font-size:0.5rem;color:var(--cream3);"></span>
+    <button class="btn primary" id="generateAllBtn" onclick="generateAll()" disabled>⚡ Generate All 25 Sections</button>
+    <button class="btn" id="generateOneBtn" onclick="generateCurrent()" disabled>▶ Generate This Section</button>
+    <button class="btn" onclick="exportAll()">⇩ Export Full Document</button>
+  </div>
+</div>
+
+<div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBar" style="width:0%"></div></div>
+
+<div class="layout">
+  <div class="sidebar" id="sidebar"></div>
+  <div class="main">
+    <div class="content-area" id="contentArea"></div>
+    <div class="log-strip">
+      <div class="log-dot info" id="logDot"></div>
+      <div class="log-text" id="logText">Add API keys to the vault on the right, then click Generate.</div>
+      <div class="log-time" id="logTime"></div>
+    </div>
+  </div>
+  <div class="keyvault">
+    <div class="kv-header">
+      <div class="kv-title">⚷ API Key Vault</div>
+      <div class="kv-sub">Paste any key • Groq / Gemini / OpenRouter<br>Auto-detected. 20 slots. Keys persist in memory.</div>
+    </div>
+    <div class="kv-body" id="kvBody"></div>
+    <div class="kv-footer">
+      <div class="kv-stat"><span class="kv-stat-lbl">Active Keys</span><span class="kv-stat-val" id="activeKeysCount">0 / 20</span></div>
+      <div class="kv-stat"><span class="kv-stat-lbl">API Calls Made</span><span class="kv-stat-val warn" id="totalCallsCount">0</span></div>
+      <div class="kv-stat"><span class="kv-stat-lbl">Current Provider</span><span class="kv-stat-val warn" id="curProvider">—</span></div>
+      <button class="btn danger" style="width:100%;margin-top:8px;font-size:0.46rem;" onclick="clearAllKeys()">✕ Clear All Keys</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="exportModal" style="display:none;">
+  <div class="modal">
+    <div class="modal-hdr">
+      <span class="modal-title">⇩ Export Full Document</span>
+      <button class="modal-close" onclick="closeExport()">✕</button>
+    </div>
+    <div class="modal-body"><textarea class="modal-textarea" id="exportContent" readonly></textarea></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="copyExport()">Copy All</button>
+      <button class="btn primary" onclick="downloadExport()">Download .md</button>
+      <button class="btn" onclick="closeExport()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SECTIONS = [
+  { id:'intro', group:'Prologue', title:'Sri Rudram — The Ocean of Mantras', subtitle:'Origin · Structure · Sacred Science · Purpose', promptType:'intro' },
+  { id:'n1', group:'Namakam', anuvaka:1, title:'Anuvaka 1', subtitle:'namas te rudra manavastoṣe…', promptType:'anuvaka', part:'Namakam' },
+  { id:'n2', group:'Namakam', anuvaka:2, title:'Anuvaka 2', subtitle:'namas te astu bhagavaṃs…', promptType:'anuvaka', part:'Namakam' },
+  { id:'n3', group:'Namakam', anuvaka:3, title:'Anuvaka 3', subtitle:'namo girīśāya ca śipiviṣṭāya…', promptType:'anuvaka', part:'Namakam' },
+  { id:'n4', group:'Namakam', anuvaka:4, title:'Anuvaka 4', subtitle:'namo vṛkṣebhyo harikēśebhyaḥ…', promptType:'anuvaka', part:'Namakam' },
+  { id:'n5', group:'Namakam', anuvaka:5, title:'Anuvaka 5', subtitle:'namas tīrthyāya ca kulyāya…', promptType:'anuvaka', part:'Namakam' },
+  { id:'n6', group:'Namakam', anuvaka:6, title:'Anuvaka 6', subtitle:'namaḥ sabhābhyaś ca…', promptType:'anuvaka', part:'Namakam' },
+  { id:'n7', group:'Namakam', anuvaka:7, title:'Anuvaka 7', subtitle:'namaḥ sopāsadbhyaś ca…', promptType:'anuvaka', part:'Namakam' },
+  { id:'n8', group:'Namakam', anuvaka:8, title:'Anuvaka 8', subtitle:'namaḥ śarabheḍhyaś ca…', promptType:'anuvaka', part:'Namakam' },
+  { id:'n9', group:'Namakam', anuvaka:9, title:'Anuvaka 9', subtitle:'nama āyacchabhyaś ca…', promptType:'anuvaka', part:'Namakam' },
+  { id:'n10', group:'Namakam', anuvaka:10, title:'Anuvaka 10', subtitle:'namo bhavāya ca rudrāya…', promptType:'anuvaka', part:'Namakam' },
+  { id:'n11', group:'Namakam', anuvaka:11, title:'Anuvaka 11 — Mahāmṛtyuñjaya', subtitle:'namas tryambakāya sugandhim puṣṭi-vardhanam…', promptType:'anuvaka', part:'Namakam' },
+  { id:'c1', group:'Chamakam', anuvaka:1, title:'Anuvaka 1', subtitle:'agniś ca ma indrāś ca me…', promptType:'anuvaka', part:'Chamakam' },
+  { id:'c2', group:'Chamakam', anuvaka:2, title:'Anuvaka 2', subtitle:'śam ca me mayaś ca me…', promptType:'anuvaka', part:'Chamakam' },
+  { id:'c3', group:'Chamakam', anuvaka:3, title:'Anuvaka 3', subtitle:'śukraś ca me śucīś ca me…', promptType:'anuvaka', part:'Chamakam' },
+  { id:'c4', group:'Chamakam', anuvaka:4, title:'Anuvaka 4', subtitle:'vṛddhiś ca me vṛddhiś ca me…', promptType:'anuvaka', part:'Chamakam' },
+  { id:'c5', group:'Chamakam', anuvaka:5, title:'Anuvaka 5', subtitle:'pañca ca me daśa ca me…', promptType:'anuvaka', part:'Chamakam' },
+  { id:'c6', group:'Chamakam', anuvaka:6, title:'Anuvaka 6', subtitle:'ekā ca me tisraś ca me…', promptType:'anuvaka', part:'Chamakam' },
+  { id:'c7', group:'Chamakam', anuvaka:7, title:'Anuvaka 7', subtitle:'śataś ca me sahasraś ca me…', promptType:'anuvaka', part:'Chamakam' },
+  { id:'c8', group:'Chamakam', anuvaka:8, title:'Anuvaka 8', subtitle:'iṣṭaṃ ca me pṛktaṃ ca me…', promptType:'anuvaka', part:'Chamakam' },
+  { id:'c9', group:'Chamakam', anuvaka:9, title:'Anuvaka 9', subtitle:'sūktaṃ ca me sukṛtaṃ ca me…', promptType:'anuvaka', part:'Chamakam' },
+  { id:'c10', group:'Chamakam', anuvaka:10, title:'Anuvaka 10', subtitle:'paśuś ca me paśupatīś ca me…', promptType:'anuvaka', part:'Chamakam' },
+  { id:'c11', group:'Chamakam', anuvaka:11, title:'Anuvaka 11', subtitle:'śaṃ no mitras śaṃ varuṇaḥ…', promptType:'anuvaka', part:'Chamakam' },
+  { id:'swara', group:'Sacred Science', title:'Svara Sthāna — Tonal Architecture', subtitle:'Pitch · Articulation · Neural Resonance · The Physics of Mantra', promptType:'swara' },
+  { id:'synthesis', group:'Sacred Science', title:'The Perfect Persona', subtitle:'Sri Rudram as a Complete System for Human Integration & Liberation', promptType:'synthesis' }
+];
+
+const vault = Array.from({length:20}, () => ({ key:'', used:0, errors:0 }));
+const sectionData = {};
+SECTIONS.forEach(s => { sectionData[s.id] = { status:'idle', content:'' }; });
+let currentSection = SECTIONS[0].id;
+let totalCalls = 0;
+let isGeneratingAll = false;
+let stopGeneration = false;
+
+/* KEY VAULT */
+function buildKeyVault() {
+  const body = document.getElementById('kvBody');
+  body.innerHTML = '';
+  for (let i = 0; i < 20; i++) {
+    const s = vault[i];
+    const locked = !!s.key;
+    const disp = locked ? (s.key.slice(0,5)+'••••'+s.key.slice(-3)) : '';
+    const div = document.createElement('div');
+    div.className = 'key-slot';
+    div.id = `ks-row-${i}`;
+    div.innerHTML = `
+      <span class="ks-num">${String(i+1).padStart(2,'0')}</span>
+      <input type="text" class="ks-input${locked?' locked':''}" id="ks-inp-${i}"
+        value="${disp}" placeholder="Paste key…" autocomplete="off" spellcheck="false"
+        ${locked?'readonly':''}
+        onpaste="handlePaste(event,${i})" onkeydown="handleEnter(event,${i})"/>
+      <button class="ks-btn${locked?' locked':''}" id="ks-btn-${i}" onclick="toggleSlot(${i})">${locked?'✓':'+'}</button>`;
+    body.appendChild(div);
+  }
+  updateVaultStats();
+}
+
+function handlePaste(e, i) {
+  e.preventDefault();
+  const k = (e.clipboardData||window.clipboardData).getData('text').trim();
+  if (k.length >= 8) lockSlot(i, k);
+}
+function handleEnter(e, i) {
+  if (e.key==='Enter') {
+    const inp = document.getElementById('ks-inp-'+i);
+    if (inp && inp.value.trim().length >= 8) lockSlot(i, inp.value.trim());
+  }
+}
+function lockSlot(i, key) {
+  vault[i].key = key; vault[i].errors = 0;
+  const inp = document.getElementById('ks-inp-'+i);
+  const btn = document.getElementById('ks-btn-'+i);
+  if (inp) { inp.value=key.slice(0,5)+'••••'+key.slice(-3); inp.classList.add('locked'); inp.setAttribute('readonly',''); }
+  if (btn) { btn.textContent='✓'; btn.classList.add('locked'); }
+  updateVaultStats();
+  log('ok', `Slot ${i+1} locked — key active`);
+}
+function toggleSlot(i) {
+  if (!vault[i].key) return;
+  if (!confirm(`Remove key from slot ${i+1}?`)) return;
+  vault[i] = { key:'', used:0, errors:0 };
+  const inp = document.getElementById('ks-inp-'+i);
+  const btn = document.getElementById('ks-btn-'+i);
+  if (inp) { inp.value=''; inp.classList.remove('locked'); inp.removeAttribute('readonly'); }
+  if (btn) { btn.textContent='+'; btn.classList.remove('locked'); }
+  updateVaultStats();
+}
+function clearAllKeys() {
+  if (!confirm('Clear all 20 keys?')) return;
+  for (let i=0; i<20; i++) {
+    vault[i] = { key:'', used:0, errors:0 };
+    const inp = document.getElementById('ks-inp-'+i);
+    const btn = document.getElementById('ks-btn-'+i);
+    if (inp) { inp.value=''; inp.classList.remove('locked'); inp.removeAttribute('readonly'); }
+    if (btn) { btn.textContent='+'; btn.classList.remove('locked'); }
+  }
+  updateVaultStats();
+}
+function updateVaultStats() {
+  const active = vault.filter(s=>s.key && s.errors<3).length;
+  document.getElementById('activeKeysCount').textContent = `${active} / 20`;
+  document.getElementById('generateAllBtn').disabled = active===0;
+  document.getElementById('generateOneBtn').disabled = active===0;
+}
+function getNextSlot() {
+  return vault.map((s,i)=>({...s,index:i})).filter(s=>s.key && s.errors<3).sort((a,b)=>a.used-b.used)[0] || null;
+}
+
+/* API ENGINE — Groq / Gemini / OpenRouter only */
+async function callAI(prompt, maxTokens=2000) {
+  const slot = getNextSlot();
+  if (!slot) throw new Error('No active API keys. Please add a Groq, Gemini, or OpenRouter key.');
+  const key = slot.key; const idx = slot.index;
+  try {
+    let result;
+    if (key.startsWith('gsk_') || key.startsWith('gsk-')) {
+      result = await callGroq(key, prompt, maxTokens);
+      document.getElementById('curProvider').textContent = `Groq·Slot${idx+1}`;
+    } else if (key.startsWith('AIzaSy') || key.startsWith('AIza')) {
+      result = await callGemini(key, prompt, maxTokens);
+      document.getElementById('curProvider').textContent = `Gemini·Slot${idx+1}`;
+    } else if (key.startsWith('sk-or')) {
+      result = await callOpenRouter(key, prompt, maxTokens);
+      document.getElementById('curProvider').textContent = `OpenRouter·Slot${idx+1}`;
+    } else {
+      // Unknown key — try Groq first, then OpenRouter
+      try {
+        result = await callGroq(key, prompt, maxTokens);
+        document.getElementById('curProvider').textContent = `Groq·Slot${idx+1}`;
+      } catch(e) {
+        result = await callOpenRouter(key, prompt, maxTokens);
+        document.getElementById('curProvider').textContent = `OR·Slot${idx+1}`;
+      }
+    }
+    vault[idx].used++; vault[idx].errors = 0; totalCalls++;
+    document.getElementById('totalCallsCount').textContent = totalCalls;
+    return result;
+  } catch(err) {
+    vault[idx].errors++;
+    log('err', `Slot ${idx+1}: ${err.message}`);
+    const next = getNextSlot();
+    if (next && next.index !== idx) return callAI(prompt, maxTokens);
+    throw err;
+  }
+}
+
+async function callGroq(key, prompt, maxTokens) {
+  const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':`Bearer ${key}`},
+    body:JSON.stringify({ model:'llama-3.3-70b-versatile', max_tokens:Math.min(maxTokens,8000), messages:[{role:'user',content:prompt}] })
+  });
+  if (!r.ok) { const t = await r.text(); throw new Error(`Groq ${r.status}: ${t}`); }
+  const d = await r.json();
+  return d.choices?.[0]?.message?.content || '';
+}
+
+async function callGemini(key, prompt, maxTokens) {
+  const r = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+    { method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({contents:[{parts:[{text:prompt}]}], generationConfig:{maxOutputTokens:Math.min(maxTokens,8192)}}) }
+  );
+  if (!r.ok) throw new Error(`Gemini ${r.status}`);
+  const d = await r.json();
+  return d.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+async function callOpenRouter(key, prompt, maxTokens) {
+  const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':`Bearer ${key}`,'HTTP-Referer':'https://srirudram.study','X-Title':'Sri Rudram Commentary'},
+    body:JSON.stringify({ model:'meta-llama/llama-3.3-70b-instruct:free', max_tokens:Math.min(maxTokens,8000), messages:[{role:'user',content:prompt}] })
+  });
+  if (!r.ok) throw new Error(`OpenRouter ${r.status}`);
+  const d = await r.json();
+  return d.choices?.[0]?.message?.content || '';
+}
+
+/* PROMPT BUILDER */
+function buildPrompt(section) {
+  if (section.promptType === 'intro') {
+    return `You are a master scholar of Vedic literature, Sanskrit linguistics, neuroscience, and Advaita-Shaiva philosophy. Write a comprehensive 1800-word introduction to Sri Rudram covering: Origin in Krishna Yajurveda (TS 4.5 & 4.7), Rishi Vasishtha, Chhandas (Anushtup/Trishtup/Jagati/Gayatri), why it is called Heart of the Vedas, Sanskrit alphabet as sacred cosmology (50 aksharas and chakra petals), Vedic Svara system (udatta/anudatta/svarita), neurological dimensions of chanting (gamma waves, cortisol, vagal stimulation), Rudra as Transformation (ghora and shiva aspects, Pashupati concept), and the path from practice to near-perfection (viveka, vairagya, satsampat). Format with bold headings. Use Sanskrit in IAST with meaning in parentheses.`;
+  }
+  if (section.promptType === 'swara') {
+    return `You are a master of Vedic phonetics and neuroscience. Write a 1600-word scholarly essay titled "Svara Sthāna: The Tonal Architecture of Sri Rudram." Cover: (1) Three Vedic svaras — Udatta (high/solar/prefrontal), Anudatta (low/lunar/limbic), Svarita (circumflex/union/Turiya) with acoustic and philosophical meanings; (2) Five articulatory sthanas — Kantha, Talu, Murdha, Danta, Ostha — with phonemes, vagal pathways, and elemental/chakra correspondences; (3) Svara patterns in 4 specific Sri Rudram mantras with tonal arc analysis; (4) Neural mapping — how udatta/anudatta/svarita sequences modulate autonomic nervous system, EEG signatures of trained chanters; (5) Svara Sadhana — guru-shishya learning, stages of mastery. Use IAST. Format with bold headings.`;
+  }
+  if (section.promptType === 'synthesis') {
+    return `You are simultaneously a Vedantic acharya, neuroscientist, depth psychologist, and poet. Write a profound 1900-word culminating essay titled "The Perfect Persona: Sri Rudram as a Complete System for Human Integration & Liberation." Cover: (1) Five Koshas — how Sri Rudram works on Annamaya/Pranamaya/Manomaya/Vijnanamaya/Anandamaya simultaneously; (2) Shadow Integration — the 108 names of Rudra as map of the psyche (Ugra=suppressed rage, Bhima=mortality, etc.); (3) Chamakam Progression — 11 anuvakas as psychological developmental ladder from survival to transcendence; (4) Scientific Convergence — DMN quieting, hemispheric integration, telomere studies; (5) The Near-Perfect Persona — concrete qualities in relationships, under stress, with death, beauty, duty; (6) Daily Sadhana prescription month by month; (7) Closing vision of the rishis' intention. Be profound, precise, and genuinely moving.`;
+  }
+  const { part, anuvaka } = section;
+  return `You are a supreme authority on Vedic literature, Sanskrit grammar, Shaiva philosophy, and neuroscience. Write a comprehensive 1500-word commentary on Sri Rudram ${part} Anuvaka ${anuvaka}.
+
+Structure your commentary as follows:
+
+## A. SANSKRIT TEXT
+Provide complete Sanskrit text in Devanagari and IAST transliteration.
+
+## B. WORD-BY-WORD ANALYSIS
+Analyze 8-12 key terms: grammar (case/number/gender or verbal root), etymology, primary meaning, esoteric meaning, aspect of Rudra invoked.
+
+## C. SVARA ANALYSIS
+Identify udatta/anudatta/svarita patterns in 3-4 key words. Explain how tonal arc mirrors philosophical content. Identify dominant sthana and physiological effect.
+
+## D. PHILOSOPHICAL COMMENTARY
+Cover Shaiva Siddhanta, Kashmir Shaivism, and Advaita Vedanta perspectives. ${part === 'Chamakam' ? 'Explain what blessings are requested and why in this sequence.' : 'Explain what form of Rudra is saluted and the psychological significance of the surrender.'}
+
+## E. NEUROLOGICAL DIMENSIONS
+Neural networks activated, physiological effects (HPA axis, cardiovascular, endocrine), psychological pattern this anuvaka dissolves.
+
+## F. METAPHYSICAL SIGNIFICANCE
+Fundamental truth revealed, macrocosmic and microcosmic dimensions, connection to Pancha-bhutas.
+
+## G. THE SADHAKA'S LEARNING
+Quality to absorb, practical contemplation instruction, behavioral shift indicating genuine understanding.
+
+Use IAST transliteration. Be precise and illuminating.`;
+}
+
+/* GENERATION ENGINE */
+async function generateSection(sectionId) {
+  const sec = SECTIONS.find(s=>s.id===sectionId);
+  if (!sec) return;
+  sectionData[sectionId].status = 'generating';
+  updateSidebarItem(sectionId);
+  if (currentSection === sectionId) renderContent(sectionId);
+  log('info', `Generating: ${sec.title}…`);
+  try {
+    const content = await callAI(buildPrompt(sec), 2000);
+    sectionData[sectionId].content = content;
+    sectionData[sectionId].status = 'done';
+    log('ok', `✓ ${sec.title} complete`);
+  } catch(err) {
+    sectionData[sectionId].status = 'error';
+    sectionData[sectionId].content = `**Error:** ${err.message}\n\nPlease check your API key and try again.`;
+    log('err', `✗ ${sec.title}: ${err.message}`);
+  }
+  updateSidebarItem(sectionId);
+  updateProgress();
+  if (currentSection === sectionId) renderContent(sectionId);
+}
+
+async function generateAll() {
+  if (isGeneratingAll) {
+    stopGeneration = true;
+    document.getElementById('generateAllBtn').textContent='⚡ Generate All 25 Sections';
+    isGeneratingAll = false; return;
+  }
+  isGeneratingAll = true; stopGeneration = false;
+  document.getElementById('generateAllBtn').textContent='⏹ Stop Generation';
+  const todo = SECTIONS.filter(s => sectionData[s.id].status !== 'done');
+  for (let i=0; i<todo.length; i++) {
+    if (stopGeneration) break;
+    await generateSection(todo[i].id);
+    await new Promise(r=>setTimeout(r,800));
+  }
+  isGeneratingAll = false; stopGeneration = false;
+  document.getElementById('generateAllBtn').textContent='⚡ Generate All 25 Sections';
+  log('ok','Generation complete!');
+}
+
+async function generateCurrent() { await generateSection(currentSection); }
+
+/* MARKDOWN RENDERER */
+function renderMarkdown(text) {
+  if (!text) return '';
+  let html = text
+    .replace(/^#### (.+)$/gm,'<h4>$1</h4>')
+    .replace(/^### (.+)$/gm,'<h3>$1</h3>')
+    .replace(/^## (.+)$/gm,'<h2>$1</h2>')
+    .replace(/^# (.+)$/gm,'<h1>$1</h1>')
+    .replace(/\*\*\*(.+?)\*\*\*/g,'<strong><em>$1</em></strong>')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/^---+$/gm,'<hr/>')
+    .replace(/^> (.+)$/gm,'<blockquote>$1</blockquote>')
+    .replace(/`([^`]+)`/g,'<code>$1</code>')
+    .replace(/^- (.+)$/gm,'<li>$1</li>')
+    .replace(/^\d+\. (.+)$/gm,'<li>$1</li>')
+    .split(/\n{2,}/)
+    .map(block => {
+      if (block.match(/^<(h[1-4]|blockquote|hr|li)/)) return block;
+      if (block.trim() === '') return '';
+      return `<p>${block.replace(/\n/g,'<br/>')}</p>`;
+    }).join('\n');
+  html = html.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, match => `<ul>${match}</ul>`);
+  return html;
+}
+
+/* UI */
+function buildSidebar() {
+  const sb = document.getElementById('sidebar');
+  const groups = [...new Set(SECTIONS.map(s=>s.group))];
+  let html = '';
+  groups.forEach(g => {
+    const items = SECTIONS.filter(s=>s.group===g);
+    html += `<div class="sb-group"><div class="sb-group-title">${g}</div>`;
+    items.forEach(s => {
+      const d = sectionData[s.id];
+      html += `<div class="sb-item${currentSection===s.id?' active':''}" id="sb-${s.id}" onclick="selectSection('${s.id}')">
+        <div class="sb-status${d.status==='done'?' done':d.status==='generating'?' generating':d.status==='error'?' error':''}" id="sbs-${s.id}"></div>
+        <div><div class="sb-label">${s.title}</div>${s.anuvaka?`<div class="sb-anuvaka">AN·${s.anuvaka}</div>`:''}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  });
+  sb.innerHTML = html;
+}
+
+function updateSidebarItem(id) {
+  const d = sectionData[id];
+  const dot = document.getElementById('sbs-'+id);
+  if (dot) dot.className = 'sb-status'+(d.status==='done'?' done':d.status==='generating'?' generating':d.status==='error'?' error':'');
+}
+
+function selectSection(id) {
+  const old = document.getElementById('sb-'+currentSection);
+  if (old) old.classList.remove('active');
+  currentSection = id;
+  const neu = document.getElementById('sb-'+id);
+  if (neu) neu.classList.add('active');
+  renderContent(id);
+}
+
+function renderContent(id) {
+  const sec = SECTIONS.find(s=>s.id===id);
+  const d = sectionData[id];
+  const area = document.getElementById('contentArea');
+  const headerHtml = `<div class="section-header"><div class="sec-eyebrow">${sec.group}</div><div class="sec-title">${sec.title}</div>${sec.subtitle?`<div class="sec-subtitle">${sec.subtitle}</div>`:''}</div>`;
+  if (d.status === 'idle') {
+    area.innerHTML = headerHtml + `<div class="empty-section"><span class="big-icon">🕉</span><p>This section has not yet been generated.</p><p style="margin-top:10px;">Click <strong>"▶ Generate This Section"</strong> or <strong>"⚡ Generate All 25 Sections"</strong>.</p><p style="margin-top:14px;font-size:0.8rem;color:var(--muted);">Add a Groq, Gemini, or OpenRouter key in the vault →</p></div>`;
+    return;
+  }
+  if (d.status === 'generating') {
+    const mantras = ['ॐ नमः शिवाय','नमस्ते रुद्र मन्यव','त्र्यम्बकं यजामहे','अग्निश्च म इन्द्रश्च मे'];
+    area.innerHTML = headerHtml + `<div class="loading-state"><div class="spinner"></div><p>Channeling sacred knowledge…</p><div class="loading-mantra">${mantras[Math.floor(Math.random()*mantras.length)]}</div></div>`;
+    return;
+  }
+  area.innerHTML = headerHtml + `<div class="generated-content">${renderMarkdown(d.content)}</div>`;
+  area.scrollTop = 0;
+}
+
+function renderWelcome() {
+  const done = Object.values(sectionData).filter(d=>d.status==='done').length;
+  document.getElementById('contentArea').innerHTML = `
+    <div class="welcome">
+      <span class="welcome-om">ॐ</span>
+      <h1>Sri Rudram — Sacred Commentary Generator</h1>
+      <p>A 40-page scholarly masterwork covering Sanskrit analysis, Svara Sthāna science, philosophical depth, neurological dimensions, and the path to perfection.</p>
+      <div class="verse"><p><em>namas te rudra manavastoṣe</em><br/><strong>Salutations to Rudra, the knower of minds</strong></p></div>
+      <div class="stats-row">
+        <div class="stat-card"><span class="stat-num">25</span><span class="stat-lbl">Sections</span></div>
+        <div class="stat-card"><span class="stat-num">11+11</span><span class="stat-lbl">Anuvakas</span></div>
+        <div class="stat-card"><span class="stat-num">~40</span><span class="stat-lbl">Pages</span></div>
+        <div class="stat-card"><span class="stat-num" id="wlDone">${done}</span><span class="stat-lbl">Generated</span></div>
+      </div>
+      <p style="color:var(--cream3);font-size:0.9rem;"><strong style="color:var(--gold2);">Supported keys:</strong> <em>Groq</em> (gsk_…), <em>Gemini</em> (AIzaSy…), <em>OpenRouter</em> (sk-or…). Paste into the vault on the right, then click Generate.</p>
+    </div>`;
+}
+
+function updateProgress() {
+  const done = Object.values(sectionData).filter(d=>d.status==='done').length;
+  const pct = Math.round((done/SECTIONS.length)*100);
+  document.getElementById('progressBar').style.width = pct+'%';
+  document.getElementById('progressLabel').textContent = `${done}/${SECTIONS.length} sections`;
+  const el = document.getElementById('wlDone'); if (el) el.textContent = done;
+}
+
+/* EXPORT */
+function exportAll() {
+  let md = `# SRI RUDRAM — A COMPLETE SACRED COMMENTARY\n## Sanskrit · Svara Sthāna · Philosophy · Neuroscience\n\n---\n\n`;
+  SECTIONS.forEach(sec => {
+    const d = sectionData[sec.id];
+    if (d.status==='done' && d.content) md += `\n\n# ${sec.title.toUpperCase()}\n${sec.subtitle?`*${sec.subtitle}*\n\n`:''}${d.content}\n\n---\n`;
+  });
+  document.getElementById('exportContent').value = md;
+  document.getElementById('exportModal').style.display = 'flex';
+}
+function closeExport() { document.getElementById('exportModal').style.display='none'; }
+function copyExport() { const ta=document.getElementById('exportContent'); ta.select(); document.execCommand('copy'); log('ok','Copied!'); }
+function downloadExport() {
+  const blob = new Blob([document.getElementById('exportContent').value], {type:'text/markdown'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='sri-rudram-commentary.md'; a.click();
+  log('ok','Downloaded!');
+}
+
+/* LOG */
+function log(type, msg) {
+  document.getElementById('logDot').className = `log-dot ${type}`;
+  document.getElementById('logText').textContent = msg;
+  const n=new Date(); document.getElementById('logTime').textContent=`${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`;
+}
+
+/* INIT */
+document.addEventListener('DOMContentLoaded', () => {
+  buildKeyVault(); buildSidebar(); renderWelcome(); updateProgress();
+  log('info','Ready — paste a Groq, Gemini, or OpenRouter key and click Generate.');
+});
+</script>
+</body>
+</html>
